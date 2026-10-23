@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+f<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -118,6 +118,15 @@
       color: #ffffff;
       background: rgba(255, 255, 255, 0.08);
     }
+    
+   .planet-btn:focus-visible,
+   .cta-btn:focus-visible,
+   .secondary-btn:focus-visible,
+   .sound-toggle:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
+}
+
 
     .planet-btn.active {
       color: #ffffff;
@@ -664,6 +673,8 @@
         const btn = document.createElement('button');
         btn.className = `planet-btn ${idx === currentIndex ? 'active' : ''}`;
         btn.setAttribute('aria-label', `Visit ${planet.name}`);
+        btn.setAttribute('aria-pressed', String(idx === currentIndex));
+        
         btn.innerHTML = `<span class="dot" style="background-color: ${planet.colorDot};"></span>${planet.name}`;
         btn.addEventListener('click', () => {
           visitPlanet(idx);
@@ -677,9 +688,13 @@
       currentIndex = index;
       const planet = PLANETS[currentIndex];
 
+
       // Update active nav button
       document.querySelectorAll('.planet-btn').forEach((btn, i) => {
-        btn.classList.toggle('active', i === currentIndex);
+        const isActive = i === currentIndex;
+
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', String(isActive));
       });
 
       // Update Planet visual
@@ -737,14 +752,29 @@
     });
 
     // Keyboard navigation (ArrowLeft / ArrowRight)
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') {
-        nextBtn.click();
-      } else if (e.key === 'ArrowLeft') {
-        const prevIndex = (currentIndex - 1 + PLANETS.length) % PLANETS.length;
-        visitPlanet(prevIndex);
-      }
-    });
+     
+window.addEventListener('keydown', (e) => {
+  const target = e.target;
+  const isTyping =
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
+  if (isTyping || e.altKey || e.ctrlKey || e.metaKey) return;
+
+  if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    nextBtn.click();
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const prevIndex = (currentIndex - 1 + PLANETS.length) % PLANETS.length;
+    visitPlanet(prevIndex);
+  } else if (e.code === 'Space' && target === document.body) {
+    e.preventDefault();
+    nextBtn.click();
+  }
+});
+
 
     // Initialize application
     initStarfield();
