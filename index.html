@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello, World(s)! - Solar System Explorer</title>
+  <style>
+    :root {
+      --bg-color: #070913;
+      --card-bg: rgba(20, 26, 48, 0.75);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --accent-color: #64b5f6;
+      --text-main: #f0f4ff;
+      --text-muted: #9aa7c7;
+      --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Starfield background canvas */
+    #starsCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    header {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 2.2rem 1rem 1rem;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 30%, #60a5fa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.4rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    /* Planet Navigation Bar */
+    .nav-container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 900px;
+      padding: 0.5rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .planet-selector {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      background: rgba(14, 18, 36, 0.6);
+      padding: 0.6rem;
+      border-radius: 9999px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .planet-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.25s ease;
+      user-select: none;
+    }
+
+    .planet-btn .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+      transition: transform 0.25s ease;
+    }
+
+    .planet-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .planet-btn.active {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.16);
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.12);
+    }
+
+    .planet-btn.active .dot {
+      transform: scale(1.4);
+    }
+
+    /* Main Display Area */
+    main {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 850px;
+      padding: 0 1.25rem 3rem;
+      flex: 1;
+    }
+
+    .stage {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      gap: 2rem;
+      transition: border-color 0.4s ease;
+    }
+
+    @media (max-width: 720px) {
+      .stage {
+        grid-template-columns: 1fr;
+        padding: 1.8rem;
+        text-align: center;
+      }
+    }
+
+    /* Planet Visualization Container */
+    .planet-view {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 280px;
+      position: relative;
+    }
+
+    .planet-sphere-wrapper {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .planet-sphere {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      position: relative;
+      box-shadow: inset -22px -22px 40px rgba(0, 0, 0, 0.8),
+                  0 0 45px var(--planet-glow, rgba(100, 180, 255, 0.3));
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: gentle-bob 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes gentle-bob {
+      0% { transform: translateY(0px) rotate(0deg); }
+      100% { transform: translateY(-8px) rotate(3deg); }
+    }
+
+    /* Rings for Saturn & Uranus */
+    .ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotateX(75deg);
+      border-radius: 50%;
+      pointer-events: none;
+      display: none;
+    }
+
+    .planet-sphere-wrapper.has-ring .ring {
+      display: block;
+    }
+
+    /* Info card section */
+    .info-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .greeting-tag {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      font-weight: 700;
+      color: var(--accent-color);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .planet-title {
+      font-size: 2.8rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: #ffffff;
+    }
+
+    .planet-subtitle {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      line-height: 1.5;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 0.8rem;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.2rem;
+    }
+
+    .stat-val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    /* Action Controls */
+    .action-controls {
+      display: flex;
+      gap: 0.8rem;
+      margin-top: 0.8rem;
+      align-items: center;
+    }
+
+    .cta-btn {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.4rem;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    }
+
+    .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+
+    .secondary-btn {
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 0.75rem 1.2rem;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .secondary-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      transform: translateY(-2px);
+    }
+
+    .sound-toggle {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      font-size: 1.1rem;
+      transition: color 0.2s;
+      margin-left: auto;
+    }
+
+    .sound-toggle:hover {
+      color: #ffffff;
+    }
+
+    footer {
+      position: relative;
+      z-index: 1;
+      margin-top: auto;
+      padding: 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Star Background Canvas -->
+  <canvas id="starsCanvas"></canvas>
+
+  <header>
+    <h1>Hello, World(s)!</h1>
+    <p>Hop between worlds in our solar system with a single click.</p>
+  </header>
+
+  <!-- Planet Navigation Bar -->
+  <nav class="nav-container" aria-label="Planetary System Navigation">
+    <div class="planet-selector" id="planetSelector">
+      <!-- Buttons dynamically rendered via JS -->
+    </div>
+  </nav>
+
+  <!-- Main Planet Display Stage -->
+  <main>
+    <div class="stage" id="stage">
+      <div class="planet-view">
+        <div class="planet-sphere-wrapper" id="planetWrapper">
+          <div class="planet-sphere" id="planetSphere"></div>
+          <div class="ring" id="planetRing"></div>
+        </div>
+      </div>
+
+      <div class="info-pane">
+        <div class="greeting-tag">
+          <span>🚀</span> <span id="greetingTag">Welcome to</span>
+        </div>
+        <h2 class="planet-title" id="planetTitle">Hello, Earth!</h2>
+        <p class="planet-subtitle" id="planetSubtitle">
+          The cradle of humankind and the only known harbor of life in the cosmos.
+        </p>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">Distance from Sun</div>
+            <div class="stat-val" id="statDistance">1.00 AU</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Surface Gravity</div>
+            <div class="stat-val" id="statGravity">1.00g (9.8 m/s²)</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Day Length</div>
+            <div class="stat-val" id="statDay">24 Hours</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Year Length</div>
+            <div class="stat-val" id="statYear">365.25 Days</div>
+          </div>
+        </div>
+
+        <div class="action-controls">
+          <button class="cta-btn" id="nextBtn" title="Fly to next celestial body">
+            Next World ➔
+          </button>
+          <button class="secondary-btn" id="randomBtn" title="Visit random planet">
+            🎲 Random World
+          </button>
+          <button class="sound-toggle" id="soundBtn" title="Toggle Sound (Web Audio)">
+            🔊 Sound On
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Crafted for planetary travelers. Built purely with HTML, CSS & JavaScript.
+  </footer>
+
+  <script>
+    // Planetary Data
+    const PLANETS = [
+      {
+        id: "mercury",
+        name: "Mercury",
+        colorDot: "#9ca3af",
+        glow: "rgba(180, 180, 180, 0.45)",
+        gradient: "radial-gradient(circle at 35% 35%, #e2e8f0, #94a3b8 40%, #475569 85%, #1e293b 100%)",
+        hasRing: false,
+        sizeScale: 0.72,
+        distance: "0.39 AU (58M km)",
+        gravity: "0.38g (3.7 m/s²)",
+        day: "59 Earth Days",
+        year: "88 Earth Days",
+        subtitle: "The speedy, cratered innermost rock, enduring extreme daytime heat and freezing nights."
+      },
+      {
+        id: "venus",
+        name: "Venus",
+        colorDot: "#f59e0b",
+        glow: "rgba(245, 158, 11, 0.45)",
+        gradient: "radial-gradient(circle at 35% 35%, #fde68a, #d97706 45%, #92400e 85%, #451a03 100%)",
+        hasRing: false,
+        sizeScale: 0.95,
+        distance: "0.72 AU (108M km)",
+        gravity: "0.90g (8.87 m/s²)",
+        day: "243 Earth Days",
+        year: "225 Earth Days",
+        subtitle: "Earth's fiery twin shrouded in dense, runaway greenhouse clouds of sulfuric acid."
+      },
+      {
+        id: "earth",
+        name: "Earth",
+        colorDot: "#3b82f6",
+        glow: "rgba(59, 130, 246, 0.55)",
+        gradient: "radial-gradient(circle at 35% 35%, #93c5fd, #2563eb 45%, #15803d 75%, #0f172a 100%)",
+        hasRing: false,
+        sizeScale: 1.0,
+        distance: "1.00 AU (150M km)",
+        gravity: "1.00g (9.8 m/s²)",
+        day: "24 Hours",
+        year: "365.25 Days",
+        subtitle: "The vibrant blue marble, teeming with life, liquid oceans, and boundless wonder."
+      },
+      {
+        id: "mars",
+        name: "Mars",
+        colorDot: "#ef4444",
+        glow: "rgba(239, 68, 68, 0.5)",
+        gradient: "radial-gradient(circle at 35% 35%, #fca5a5, #dc2626 50%, #7f1d1d 85%, #300a0a 100%)",
+        hasRing: false,
+        sizeScale: 0.82,
+        distance: "1.52 AU (228M km)",
+        gravity: "0.38g (3.71 m/s²)",
+        day: "24h 37m",
+        year: "687 Earth Days",
+        subtitle: "The Red Planet, home to iron-oxide dunes, ancient dry riverbeds, and Olympus Mons."
+      },
+      {
+        id: "jupiter",
+        name: "Jupiter",
+        colorDot: "#d97706",
+        glow: "rgba(217, 119, 6, 0.45)",
+        gradient: "repeating-linear-gradient(175deg, #d97706, #fde68a 12px, #b45309 24px, #d97706 36px, #78350f 48px)",
+        hasRing: false,
+        sizeScale: 1.35,
+        distance: "5.20 AU (778M km)",
+        gravity: "2.53g (24.79 m/s²)",
+        day: "9h 55m",
+        year: "11.86 Earth Years",
+        subtitle: "The mighty gas giant protecting the inner worlds, sporting the centuries-old Great Red Spot."
+      },
+      {
+        id: "saturn",
+        name: "Saturn",
+        colorDot: "#eab308",
+        glow: "rgba(234, 179, 8, 0.4)",
+        gradient: "radial-gradient(circle at 35% 35%, #fef08a, #ca8a04 45%, #854d0e 85%, #291e05 100%)",
+        hasRing: true,
+        ringStyle: {
+          width: "300px",
+          height: "90px",
+          border: "12px solid rgba(234, 179, 8, 0.6)",
+          boxShadow: "0 0 16px rgba(202, 138, 4, 0.4)"
+        },
+        sizeScale: 1.18,
+        distance: "9.58 AU (1.43B km)",
+        gravity: "1.07g (10.44 m/s²)",
+        day: "10h 33m",
+        year: "29.45 Earth Years",
+        subtitle: "The crown jewel of the solar system, surrounded by a dazzling ring of ice and rock."
+      },
+      {
+        id: "uranus",
+        name: "Uranus",
+        colorDot: "#38bdf8",
+        glow: "rgba(56, 189, 248, 0.45)",
+        gradient: "radial-gradient(circle at 35% 35%, #e0f2fe, #38bdf8 55%, #0284c7 85%, #075985 100%)",
+        hasRing: true,
+        ringStyle: {
+          width: "240px",
+          height: "55px",
+          border: "4px solid rgba(56, 189, 248, 0.45)",
+          boxShadow: "0 0 10px rgba(56, 189, 248, 0.3)"
+        },
+        sizeScale: 1.05,
+        distance: "19.22 AU (2.87B km)",
+        gravity: "0.89g (8.69 m/s²)",
+        day: "17h 14m",
+        year: "84 Earth Years",
+        subtitle: "The sideways ice giant with a unique 98-degree tilt and icy methane clouds."
+      },
+      {
+        id: "neptune",
+        name: "Neptune",
+        colorDot: "#2563eb",
+        glow: "rgba(37, 99, 235, 0.55)",
+        gradient: "radial-gradient(circle at 35% 35%, #93c5fd, #2563eb 45%, #1d4ed8 75%, #0f172a 100%)",
+        hasRing: false,
+        sizeScale: 1.05,
+        distance: "30.05 AU (4.50B km)",
+        gravity: "1.14g (11.15 m/s²)",
+        day: "16h 06m",
+        year: "164.8 Earth Years",
+        subtitle: "The outermost giant where supersonic winds howl across deep azure skies."
+      },
+      {
+        id: "pluto",
+        name: "Pluto",
+        colorDot: "#c084fc",
+        glow: "rgba(192, 132, 252, 0.4)",
+        gradient: "radial-gradient(circle at 35% 35%, #f3e8ff, #c084fc 45%, #7e22ce 80%, #3b0764 100%)",
+        hasRing: false,
+        sizeScale: 0.65,
+        distance: "39.48 AU (5.91B km)",
+        gravity: "0.06g (0.62 m/s²)",
+        day: "153 Hours",
+        year: "248 Earth Years",
+        subtitle: "The beloved dwarf planet in the Kuiper Belt with a giant heart-shaped nitrogen glacier."
+      }
+    ];
+
+    let currentIndex = 2; // Default to Earth
+    let soundEnabled = true;
+    let audioCtx = null;
+
+    // Web Audio Sound Synthesizer for cosmic warp effects
+    function playWarpSound() {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+
+        // Frequency sweep for space warp sound
+        const now = audioCtx.currentTime;
+        const baseFreq = 220 + (currentIndex * 40);
+        osc.frequency.setValueAtTime(baseFreq * 0.7, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.6, now + 0.18);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.35);
+
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.36);
+      } catch (e) {
+        // Audio might be blocked until user gesture, ignore safely
+      }
+    }
+
+    // Starfield Generator
+    function initStarfield() {
+      const canvas = document.getElementById('starsCanvas');
+      const ctx = canvas.getContext('2d');
+      let stars = [];
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        stars = Array.from({ length: 120 }, () => ({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          radius: Math.random() * 1.4 + 0.4,
+          alpha: Math.random(),
+          speed: Math.random() * 0.02 + 0.005
+        }));
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        stars.forEach(star => {
+          star.alpha += star.speed;
+          if (star.alpha > 1 || star.alpha < 0) star.speed = -star.speed;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${Math.abs(star.alpha)})`;
+          ctx.fill();
+        });
+        requestAnimationFrame(draw);
+      }
+
+      window.addEventListener('resize', resize);
+      resize();
+      draw();
+    }
+
+    // UI elements
+    const selectorEl = document.getElementById('planetSelector');
+    const sphereEl = document.getElementById('planetSphere');
+    const ringEl = document.getElementById('planetRing');
+    const wrapperEl = document.getElementById('planetWrapper');
+    const titleEl = document.getElementById('planetTitle');
+    const greetingTagEl = document.getElementById('greetingTag');
+    const subtitleEl = document.getElementById('planetSubtitle');
+    const statDistanceEl = document.getElementById('statDistance');
+    const statGravityEl = document.getElementById('statGravity');
+    const statDayEl = document.getElementById('statDay');
+    const statYearEl = document.getElementById('statYear');
+    const nextBtn = document.getElementById('nextBtn');
+    const randomBtn = document.getElementById('randomBtn');
+    const soundBtn = document.getElementById('soundBtn');
+
+    // Build planet navigation buttons
+    function buildNavigation() {
+      selectorEl.innerHTML = '';
+      PLANETS.forEach((planet, idx) => {
+        const btn = document.createElement('button');
+        btn.className = `planet-btn ${idx === currentIndex ? 'active' : ''}`;
+        btn.setAttribute('aria-label', `Visit ${planet.name}`);
+        btn.innerHTML = `<span class="dot" style="background-color: ${planet.colorDot};"></span>${planet.name}`;
+        btn.addEventListener('click', () => {
+          visitPlanet(idx);
+        });
+        selectorEl.appendChild(btn);
+      });
+    }
+
+    // Visit a planet by index
+    function visitPlanet(index) {
+      currentIndex = index;
+      const planet = PLANETS[currentIndex];
+
+      // Update active nav button
+      document.querySelectorAll('.planet-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i === currentIndex);
+      });
+
+      // Update Planet visual
+      const baseDiameter = 180;
+      const computedSize = Math.round(baseDiameter * planet.sizeScale);
+      sphereEl.style.width = `${computedSize}px`;
+      sphereEl.style.height = `${computedSize}px`;
+      sphereEl.style.background = planet.gradient;
+      sphereEl.style.setProperty('--planet-glow', planet.glow);
+
+      // Rings handling
+      if (planet.hasRing && planet.ringStyle) {
+        wrapperEl.classList.add('has-ring');
+        ringEl.style.width = planet.ringStyle.width;
+        ringEl.style.height = planet.ringStyle.height;
+        ringEl.style.border = planet.ringStyle.border;
+        ringEl.style.boxShadow = planet.ringStyle.boxShadow;
+      } else {
+        wrapperEl.classList.remove('has-ring');
+      }
+
+      // Update Information pane with smooth transition
+      titleEl.textContent = `Hello, ${planet.name}!`;
+      greetingTagEl.textContent = `Arriving at world #${currentIndex + 1} of ${PLANETS.length}`;
+      subtitleEl.textContent = planet.subtitle;
+      statDistanceEl.textContent = planet.distance;
+      statGravityEl.textContent = planet.gravity;
+      statDayEl.textContent = planet.day;
+      statYearEl.textContent = planet.year;
+
+      // Play audio feedback
+      playWarpSound();
+    }
+
+    // Event listeners
+    nextBtn.addEventListener('click', () => {
+      const nextIndex = (currentIndex + 1) % PLANETS.length;
+      visitPlanet(nextIndex);
+    });
+
+    randomBtn.addEventListener('click', () => {
+      let randIndex;
+      do {
+        randIndex = Math.floor(Math.random() * PLANETS.length);
+      } while (randIndex === currentIndex && PLANETS.length > 1);
+      visitPlanet(randIndex);
+    });
+
+    soundBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      soundBtn.textContent = soundEnabled ? '🔊 Sound On' : '🔇 Sound Muted';
+      if (soundEnabled) {
+        playWarpSound();
+      }
+    });
+
+    // Keyboard navigation (ArrowLeft / ArrowRight)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        nextBtn.click();
+      } else if (e.key === 'ArrowLeft') {
+        const prevIndex = (currentIndex - 1 + PLANETS.length) % PLANETS.length;
+        visitPlanet(prevIndex);
+      }
+    });
+
+    // Initialize application
+    initStarfield();
+    buildNavigation();
+    visitPlanet(currentIndex);
+  </script>
+</body>
+</html>
