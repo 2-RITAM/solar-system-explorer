@@ -14,7 +14,8 @@ An interactive web experience that lets you explore different worlds through pla
 
 ## 📸 Preview
 
-![Solar System Explorer website screenshot](./solar-system-explorer.png)
+![Solar System Explorer website screenshot](<img width="1920" height="1080" alt="Screenshot 2026-10-23 104840" src="https://github.com/user-attachments/assets/d90e26a3-34d5-4a62-bc88-355123146921" />
+)
 
 ## 🛠️ Technologies Used
 
